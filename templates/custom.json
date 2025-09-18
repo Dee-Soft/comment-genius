@@ -1,0 +1,5 @@
+{
+  "functionTemplate": "/**\n * 🚀 {{description}}\n * \n{{#each params}}\n * @param {{name}} - Parameter description\n{{/each}}\n * @returns - Amazing results!\n * \n * @example\n * // Super example!\n * {{name}}();\n */",
+  "classTemplate": "/**\n * 🏗️  {{description}}\n * \n * @class\n * @awesome\n */",
+  "variableTemplate": "/**\n * 📦 {{name}} - Awesome variable!\n * @type {{{{type}}}}\n */"
+}
