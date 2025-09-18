@@ -1,0 +1,8 @@
+{
+  "type": "documentation",
+  "includeTypes": true,
+  "includeDescriptions": true,
+  "includeExamples": true,
+  "includeParams": true,
+  "includeReturns": true
+}

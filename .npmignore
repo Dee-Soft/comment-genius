@@ -1,0 +1,7 @@
+src/
+test/
+tsconfig.json
+*.ts
+*.map
+.d.ts
+!dist/**/.d.ts
