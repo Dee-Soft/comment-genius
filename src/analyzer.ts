@@ -13,18 +13,21 @@ export class CodeAnalyzer {
 
   analyzeFile(filePath: string): FileAnalysis {
     if (!fs.existsSync(filePath)) {
-      throw new Error(`File not found: ${filePath}`);
-    }
+    throw new Error(`File not found: ${filePath}`);
+  }
 
     const sourceCode = fs.readFileSync(filePath, 'utf-8');
+    const compilerOptions = this.createCompilerOptions(filePath);
+    
     const sourceFile = ts.createSourceFile(
       filePath,
       sourceCode,
-      ts.ScriptTarget.Latest,
+      compilerOptions.target || ts.ScriptTarget.Latest,
       true
     );
 
-    this.program = ts.createProgram([filePath], {});
+    // Create program with appropriate options
+    this.program = ts.createProgram([filePath], compilerOptions);
     this.checker = this.program.getTypeChecker();
 
     return {
@@ -50,6 +53,29 @@ export class CodeAnalyzer {
     visit(sourceFile);
     return functions;
   }
+
+  private createCompilerOptions(filePath: string): ts.CompilerOptions {
+  const ext = path.extname(filePath);
+  const isTypeScript = ['.ts', '.tsx'].includes(ext);
+  const isJsx = ['.jsx', '.tsx'].includes(ext);
+
+  return {
+    target: isTypeScript ? ts.ScriptTarget.ES2020 : ts.ScriptTarget.ESNext,
+    module: ts.ModuleKind.CommonJS,
+    jsx: isJsx ? ts.JsxEmit.React : ts.JsxEmit.None,
+    allowJs: !isTypeScript, // Allow JS for TS files too for mixed codebases
+    checkJs: false, // Don't type check JS files
+    allowNonTsExtensions: true,
+    // For JavaScript files, be more permissive
+    noImplicitAny: isTypeScript,
+    strictNullChecks: isTypeScript,
+    strictFunctionTypes: isTypeScript,
+    // Support CommonJS modules in JS
+    moduleResolution: ts.ModuleResolutionKind.NodeJs,
+    allowSyntheticDefaultImports: true,
+    esModuleInterop: true
+  };
+}
 
   private parseFunction(node: ts.FunctionDeclaration): FunctionInfo {
     return {
@@ -224,14 +250,31 @@ export class CodeAnalyzer {
   }
 
   private extractParams(parameters: ts.NodeArray<ts.ParameterDeclaration>): ParamInfo[] {
-    return parameters.map(param => ({
+  return parameters.map(param => {
+    let type = this.getTypeText(param.type);
+    
+    // For JavaScript files, try to infer types from usage
+    if (type === 'any' && this.checker) {
+      try {
+        const symbol = this.checker.getSymbolAtLocation(param.name);
+        if (symbol) {
+          const paramType = this.checker.getTypeOfSymbolAtLocation(symbol, param.name);
+          type = this.checker.typeToString(paramType);
+        }
+      } catch (error) {
+        // Silently fail - we'll use 'any' as fallback
+      }
+    }
+
+    return {
       name: param.name.getText(),
-      type: this.getTypeText(param.type),
+      type: type,
       description: this.extractComments(param),
       isOptional: !!param.questionToken,
       defaultValue: param.initializer?.getText()
-    }));
-  }
+    };
+  });
+}
 
   private getReturnType(node: ts.SignatureDeclaration): string {
     return this.getTypeText(node.type) || 'void';
@@ -239,7 +282,15 @@ export class CodeAnalyzer {
 
   private getTypeText(typeNode: ts.TypeNode | undefined): string {
     if (!typeNode) return 'any';
-    return typeNode.getText();
+    
+    const typeText = typeNode.getText();
+    
+    // Handle JavaScript files where types might not be explicit
+    if (typeText === 'any' || !typeText.trim()) {
+      return 'any';
+    }
+    
+    return typeText;
   }
 
   private extractComments(node: ts.Node): string | undefined {
@@ -251,4 +302,5 @@ export class CodeAnalyzer {
     }
     return undefined;
   }
+  
 }

@@ -5,6 +5,10 @@ export interface CommentConfig {
   includeExamples: boolean;
   includeParams: boolean;
   includeReturns: boolean;
+  // New settings for JS/TS support
+  inferTypesFromJs: boolean;
+  useTypeInference: boolean;
+  templatePath?: string;
 }
 
 export interface FunctionInfo {

@@ -8,7 +8,10 @@ export const DEFAULT_CONFIG: CommentConfig = {
   includeDescriptions: true,
   includeExamples: true,
   includeParams: true,
-  includeReturns: true
+  includeReturns: true,
+  inferTypesFromJs: true, // Try to infer types in JS files
+  useTypeInference: true,  // Use type inference when possible
+  templatePath: undefined
 };
 
 export class ConfigManager {
@@ -49,4 +52,5 @@ export class ConfigManager {
   async getConfig(): Promise<CommentConfig> {
     return this.loadConfig();
   }
+
 }

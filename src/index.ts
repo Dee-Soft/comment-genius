@@ -10,6 +10,9 @@ import chalk from 'chalk';
 import figlet from 'figlet';
 import ora from 'ora';
 
+import { ASTCommentInjector } from './ast-injector';
+import { TemplateEngine } from './template-engine';
+
 export async function main(): Promise<void> {
   console.log(chalk.blue(figlet.textSync('Comment Genius', { horizontalLayout: 'full' })));
 
@@ -51,30 +54,54 @@ async function generateComments(files: string[], config: any): Promise<void> {
   
   try {
     const analyzer = new CodeAnalyzer();
-    const generator = new CommentGenerator(config);
+    const templateEngine = new TemplateEngine(config);
+    
+    // Load custom templates if specified
+    if (config.templatePath) {
+      await templateEngine.loadCustomTemplatesFromFile(config.templatePath);
+    }
 
     for (const file of files) {
       try {
         const analysis = analyzer.analyzeFile(file);
         let content = await FileUtils.readFile(file);
 
-        // Generate comments for functions
+        const commentsToInject = new Map<string, string>();
+
+        // Generate comments for all elements
         for (const func of analysis.functions) {
-          const comment = generator.generateFunctionComment(func);
-          content = injectComment(content, func.name, comment);
+          const comment = templateEngine.generateFunctionComment(func);
+          commentsToInject.set(func.name, comment);
         }
 
-        // Generate comments for classes
         for (const cls of analysis.classes) {
-          const comment = generator.generateClassComment(cls);
-          content = injectComment(content, cls.name, comment);
+          const comment = templateEngine.generateClassComment(cls);
+          commentsToInject.set(cls.name, comment);
+          
+          for (const method of cls.methods) {
+            const methodComment = templateEngine.generateMethodComment(method);
+            commentsToInject.set(`${cls.name}.${method.name}`, methodComment);
+          }
+          
+          for (const prop of cls.properties) {
+            const propComment = templateEngine.generatePropertyComment(prop);
+            commentsToInject.set(`${cls.name}.${prop.name}`, propComment);
+          }
         }
 
+        for (const variable of analysis.variables) {
+          const comment = templateEngine.generateVariableComment(variable);
+          commentsToInject.set(variable.name, comment);
+        }
+
+        // Use AST-based injection
+        content = ASTCommentInjector.injectComments(content, commentsToInject);
+        
         await FileUtils.writeFile(file, content);
         spinner.text = `Processed: ${file}`;
       } catch (error) {
         if (error instanceof Error)
-            spinner.warn(`Skipped ${file}: ${error.message}`);
+        spinner.warn(`Skipped ${file}: ${error.message}`);
       }
     }
 
