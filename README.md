@@ -28,3 +28,16 @@ comment-genius --files "src/**/*.ts" --cleanup
 ```bash
 comment-genius --files "src/**/*.ts" --both
 ```
+
+## Features
+- 📝 Automatic comment generation for functions, classes, methods, properties
+- 🧹 Intelligent cleanup of garbage comments
+- 🎯 Support for multiple documentation formats (JSDoc, TypeDoc, Documentation.js)
+- ⚙️ Configurable through interactive prompts or config file
+- 🔄 Backup and restore functionality
+
+## Supported File Types
+- JavaScript (.js)
+- TypeScript (.ts)
+- JSX (.jsx)
+- TSX (.tsx)
