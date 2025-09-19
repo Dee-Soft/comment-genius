@@ -2,6 +2,12 @@ import * as ts from 'typescript';
 import * as fs from 'fs';
 
 export class ASTCommentInjector {
+  static async injectCommentsInFile(filePath: string, comments: Map<string, string>): Promise<string> {
+    const content = await fs.promises.readFile(filePath, 'utf-8');
+    const modifiedContent = this.injectComments(content, comments);
+    return modifiedContent;
+  }
+  
   static injectComments(sourceCode: string, comments: Map<string, string>): string {
     const sourceFile = ts.createSourceFile(
       'temp.ts',

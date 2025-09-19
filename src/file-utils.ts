@@ -1,21 +1,14 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import * as glob from 'glob';
+import { globby } from 'globby';
 
 export class FileUtils {
   static async findFiles(patterns: string[]): Promise<string[]> {
-    const files: string[] = [];
-
-    for (const pattern of patterns) {
-      const matches = await new Promise<string[]>((resolve, reject) => {
-        glob(pattern, (err, matches) => {
-          if (err) reject(err);
-          else resolve(matches);
-        });
-      });
-
-      files.push(...matches);
-    }
+    const files = await globby(patterns, {
+      expandDirectories: {
+        extensions: ['js', 'ts', 'jsx', 'tsx']
+      }
+    });
 
     return Array.from(new Set(files)).filter(file => 
       ['.js', '.ts', '.jsx', '.tsx'].includes(path.extname(file))
@@ -24,6 +17,10 @@ export class FileUtils {
 
   static async writeFile(filePath: string, content: string): Promise<void> {
     await fs.promises.writeFile(filePath, content, 'utf-8');
+  }
+
+  static async readFile(filePath: string): Promise<string> {
+    return await fs.promises.readFile(filePath, 'utf-8');
   }
 
   static async backupFile(filePath: string): Promise<string> {
@@ -36,5 +33,14 @@ export class FileUtils {
     const originalPath = backupPath.replace('.backup', '');
     await fs.promises.copyFile(backupPath, originalPath);
     await fs.promises.unlink(backupPath);
+  }
+
+  static async exists(filePath: string): Promise<boolean> {
+    try {
+      await fs.promises.access(filePath);
+      return true;
+    } catch {
+      return false;
+    }
   }
 }

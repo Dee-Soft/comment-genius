@@ -1,19 +1,16 @@
-#!/usr/bin/env node
-
 import { ConfigManager } from './config';
 import { CodeAnalyzer } from './analyzer';
 import { CommentGenerator } from './generator';
 import { CommentCleaner } from './cleaner';
 import { FileUtils } from './file-utils';
+import { ASTCommentInjector } from './ast-injector';
+import { TemplateEngine } from './template-engine';
 import { promptForConfig, promptForFiles, promptForAction } from './prompts';
 import chalk from 'chalk';
 import figlet from 'figlet';
 import ora from 'ora';
 
-import { ASTCommentInjector } from './ast-injector';
-import { TemplateEngine } from './template-engine';
-
-export async function main(): Promise<void> {
+async function main(): Promise<void> {
   console.log(chalk.blue(figlet.textSync('Comment Genius', { horizontalLayout: 'full' })));
 
   try {
@@ -44,7 +41,7 @@ export async function main(): Promise<void> {
     console.log(chalk.green('✅ All done!'));
   } catch (error) {
     if (error instanceof Error)
-    console.error(chalk.red('❌ Error:'), error.message);
+      console.error(chalk.red('❌ Error:'), error.message);
     process.exit(1);
   }
 }
@@ -55,6 +52,7 @@ async function generateComments(files: string[], config: any): Promise<void> {
   try {
     const analyzer = new CodeAnalyzer();
     const templateEngine = new TemplateEngine(config);
+    const generator = new CommentGenerator(config);
     
     // Load custom templates if specified
     if (config.templatePath) {
@@ -70,27 +68,27 @@ async function generateComments(files: string[], config: any): Promise<void> {
 
         // Generate comments for all elements
         for (const func of analysis.functions) {
-          const comment = templateEngine.generateFunctionComment(func);
+          const comment = generator.generateFunctionComment(func);
           commentsToInject.set(func.name, comment);
         }
 
         for (const cls of analysis.classes) {
-          const comment = templateEngine.generateClassComment(cls);
+          const comment = generator.generateClassComment(cls);
           commentsToInject.set(cls.name, comment);
           
           for (const method of cls.methods) {
-            const methodComment = templateEngine.generateMethodComment(method);
+            const methodComment = generator.generateMethodComment(method);
             commentsToInject.set(`${cls.name}.${method.name}`, methodComment);
           }
           
           for (const prop of cls.properties) {
-            const propComment = templateEngine.generatePropertyComment(prop);
+            const propComment = generator.generatePropertyComment(prop);
             commentsToInject.set(`${cls.name}.${prop.name}`, propComment);
           }
         }
 
         for (const variable of analysis.variables) {
-          const comment = templateEngine.generateVariableComment(variable);
+          const comment = generator.generateVariableComment(variable);
           commentsToInject.set(variable.name, comment);
         }
 
@@ -101,7 +99,7 @@ async function generateComments(files: string[], config: any): Promise<void> {
         spinner.text = `Processed: ${file}`;
       } catch (error) {
         if (error instanceof Error)
-        spinner.warn(`Skipped ${file}: ${error.message}`);
+          spinner.warn(`Skipped ${file}: ${error.message}`);
       }
     }
 
@@ -125,7 +123,7 @@ async function cleanupComments(files: string[]): Promise<void> {
         spinner.text = `Cleaned: ${file}`;
       } catch (error) {
         if (error instanceof Error)
-            spinner.warn(`Skipped ${file}: ${error.message}`);
+          spinner.warn(`Skipped ${file}: ${error.message}`);
       }
     }
 
@@ -135,28 +133,6 @@ async function cleanupComments(files: string[]): Promise<void> {
     throw error;
   }
 }
-
-function injectComment(content: string, identifier: string, comment: string): string {
-  // Simple implementation - in real world, you'd use proper AST manipulation
-  const lines = content.split('\n');
-  const newLines: string[] = [];
-  let injected = false;
-
-  for (const line of lines) {
-    if (line.includes(identifier) && !injected) {
-      newLines.push(comment);
-      injected = true;
-    }
-    newLines.push(line);
-  }
-
-  return newLines.join('\n');
-}
-
-// Add missing readFile method to FileUtils
-FileUtils.readFile = async (filePath: string): Promise<string> => {
-  return await import('fs').then(fs => fs.promises.readFile(filePath, 'utf-8'));
-};
 
 // Export for CLI usage
 export { main };

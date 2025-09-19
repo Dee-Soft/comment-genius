@@ -7,6 +7,30 @@ export class CodeAnalyzer {
   private program?: ts.Program;
   private checker?: ts.TypeChecker;
 
+  private isPrivateIdentifier(node: ts.Node): boolean {
+  // For TypeScript 4.0+ with private identifiers (#field)
+  return (node as any).kind === ts.SyntaxKind.PrivateIdentifier;
+}
+
+private hasPrivateModifier(modifiers: ts.NodeArray<ts.ModifierLike> | undefined): boolean {
+  if (!modifiers) return false;
+  
+  return modifiers.some(mod => {
+    // Standard private keyword
+    if (mod.kind === ts.SyntaxKind.PrivateKeyword) return true;
+    
+    // Private identifiers (#field)
+    if (this.isPrivateIdentifier(mod)) return true;
+    
+    return false;
+  });
+}
+
+private hasStaticModifier(modifiers: ts.NodeArray<ts.ModifierLike> | undefined): boolean {
+  if (!modifiers) return false;
+  return modifiers.some(mod => mod.kind === ts.SyntaxKind.StaticKeyword);
+}
+
   analyzeFiles(filePaths: string[]): FileAnalysis[] {
     return filePaths.map(filePath => this.analyzeFile(filePath));
   }
@@ -123,6 +147,28 @@ export class CodeAnalyzer {
     };
   }
 
+    private isPrivateMember(modifiers: ts.NodeArray<ts.ModifierLike> | undefined): boolean {
+    if (!modifiers) return false;
+    
+    return modifiers.some(mod => {
+      // For regular private keyword
+      if (mod.kind === ts.SyntaxKind.PrivateKeyword) return true;
+      
+      // For #private fields (PrivateIdentifier)
+      if ((mod as any).kind === ts.SyntaxKind.PrivateIdentifier) return true;
+      
+      // For newer TypeScript versions
+      if (ts.isPrivateIdentifier?.(mod)) return true;
+      
+      return false;
+    });
+  }
+
+  private isStaticMember(modifiers: ts.NodeArray<ts.ModifierLike> | undefined): boolean {
+    if (!modifiers) return false;
+    return modifiers.some(mod => mod.kind === ts.SyntaxKind.StaticKeyword);
+  }
+
   private extractMethods(classNode: ts.ClassDeclaration): MethodInfo[] {
     const methods: MethodInfo[] = [];
 
@@ -135,11 +181,8 @@ export class CodeAnalyzer {
           description: this.extractComments(child),
           isAsync: !!child.modifiers?.some(mod => mod.kind === ts.SyntaxKind.AsyncKeyword),
           isGenerator: !!child.asteriskToken,
-          isStatic: !!child.modifiers?.some(mod => mod.kind === ts.SyntaxKind.StaticKeyword),
-          isPrivate: !!child.modifiers?.some(mod => 
-            mod.kind === ts.SyntaxKind.PrivateKeyword || 
-            mod.kind === ts.SyntaxKind.HashToken
-          )
+          isPrivate: this.hasPrivateModifier(child.modifiers),
+          isStatic: this.hasStaticModifier(child.modifiers)
         });
       }
     });
@@ -156,11 +199,8 @@ export class CodeAnalyzer {
           name: child.name.getText(),
           type: this.getTypeText(child.type),
           description: this.extractComments(child),
-          isStatic: !!child.modifiers?.some(mod => mod.kind === ts.SyntaxKind.StaticKeyword),
-          isPrivate: !!child.modifiers?.some(mod => 
-            mod.kind === ts.SyntaxKind.PrivateKeyword || 
-            mod.kind === ts.SyntaxKind.HashToken
-          )
+          isPrivate: this.hasPrivateModifier(child.modifiers),
+          isStatic: this.hasStaticModifier(child.modifiers)
         });
       }
     });
