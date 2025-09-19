@@ -114,7 +114,6 @@ class TemplateEngine {
 {{/if}}
  */`;
     }
-    // Simple template engine using replace
     renderTemplate(template, data) {
         let result = template;
         // Handle conditionals
@@ -127,20 +126,18 @@ class TemplateEngine {
                 return '';
             return data[key].map((item, index) => {
                 let itemContent = content;
-                itemContent = itemContent.replace(/\{\{(\w+)\}\}/g, (m, prop) => item[prop] || '');
+                // Replace item properties
+                itemContent = itemContent.replace(/\{\{(\w+)\}\}/g, (m, prop) => item[prop] !== undefined ? item[prop] : '');
+                // Replace loop variables
                 itemContent = itemContent.replace(/\{\{@index\}\}/g, index.toString());
                 itemContent = itemContent.replace(/\{\{@last\}\}/g, (index === data[key].length - 1).toString());
                 return itemContent;
             }).join('');
         });
         // Handle simple variables
-        result = result.replace(/\{\{(\w+)\}\}/g, (match, key) => {
-            return data[key] !== undefined ? data[key] : '';
-        });
+        result = result.replace(/\{\{(\w+)\}\}/g, (match, key) => data[key] !== undefined ? data[key] : '');
         // Handle escaped variables (for type annotations)
-        result = result.replace(/\{\{\{(\w+)\}\}\}/g, (match, key) => {
-            return data[key] !== undefined ? data[key] : '';
-        });
+        result = result.replace(/\{\{\{(\w+)\}\}\}/g, (match, key) => data[key] !== undefined ? data[key] : '');
         return result;
     }
     generateFunctionComment(func) {
