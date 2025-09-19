@@ -10,6 +10,10 @@ export interface TemplateConfig {
   variableTemplate?: string;
 }
 
+interface TemplateData {
+  [key: string]: any;
+}
+
 export class TemplateEngine {
   private templates: TemplateConfig;
   private config: CommentConfig;
@@ -100,36 +104,48 @@ export class TemplateEngine {
  */`;
   }
 
-  // Simple template engine using replace
-  private renderTemplate(template: string, data: any): string {
+  private renderTemplate(template: string, data: TemplateData): string {
     let result = template;
 
     // Handle conditionals
-    result = result.replace(/\{\{#if (\w+)\}\}(.*?)\{\{\/if\}\}/gs, (match, key, content) => {
-      return data[key] ? content : '';
-    });
+    result = result.replace(/\{\{#if (\w+)\}\}(.*?)\{\{\/if\}\}/gs, 
+      (match: string, key: string, content: string): string => {
+        return data[key] ? content : '';
+      }
+    );
 
     // Handle loops
-    result = result.replace(/\{\{#each (\w+)\}\}(.*?)\{\{\/each\}\}/gs, (match, key, content) => {
-      if (!data[key] || !Array.isArray(data[key])) return '';
-      return data[key].map((item: any, index: number) => {
-        let itemContent = content;
-        itemContent = itemContent.replace(/\{\{(\w+)\}\}/g, (m, prop) => item[prop] || '');
-        itemContent = itemContent.replace(/\{\{@index\}\}/g, index.toString());
-        itemContent = itemContent.replace(/\{\{@last\}\}/g, (index === data[key].length - 1).toString());
-        return itemContent;
-      }).join('');
-    });
+    result = result.replace(/\{\{#each (\w+)\}\}(.*?)\{\{\/each\}\}/gs, 
+      (match: string, key: string, content: string): string => {
+        if (!data[key] || !Array.isArray(data[key])) return '';
+        return data[key].map((item: any, index: number): string => {
+          let itemContent = content;
+          
+          // Replace item properties
+          itemContent = itemContent.replace(/\{\{(\w+)\}\}/g, 
+            (m: string, prop: string): string => item[prop] !== undefined ? item[prop] : ''
+          );
+          
+          // Replace loop variables
+          itemContent = itemContent.replace(/\{\{@index\}\}/g, index.toString());
+          itemContent = itemContent.replace(/\{\{@last\}\}/g, 
+            (index === data[key].length - 1).toString()
+          );
+          
+          return itemContent;
+        }).join('');
+      }
+    );
 
     // Handle simple variables
-    result = result.replace(/\{\{(\w+)\}\}/g, (match, key) => {
-      return data[key] !== undefined ? data[key] : '';
-    });
+    result = result.replace(/\{\{(\w+)\}\}/g, 
+      (match: string, key: string): string => data[key] !== undefined ? data[key] : ''
+    );
 
     // Handle escaped variables (for type annotations)
-    result = result.replace(/\{\{\{(\w+)\}\}\}/g, (match, key) => {
-      return data[key] !== undefined ? data[key] : '';
-    });
+    result = result.replace(/\{\{\{(\w+)\}\}\}/g, 
+      (match: string, key: string): string => data[key] !== undefined ? data[key] : ''
+    );
 
     return result;
   }
@@ -184,8 +200,8 @@ export class TemplateEngine {
         this.templates = { ...this.templates, ...customTemplates };
       }
     } catch (error) {
-        if (error instanceof Error)
-            console.warn('Error loading custom templates:', error.message);
+      if (error instanceof Error)
+        console.warn('Error loading custom templates:', error.message);
     }
   }
 }
